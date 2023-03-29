@@ -267,3 +267,77 @@ Disassembly of section .text:
 - `llvm-mc -triple bpf -filetype=obj -o bpf.o bpf.s`: assemble BPF assembly into ELF object file
 - `llvm-objdump -d bpf.o`: dump the code in hexadecimal format
 - `llvm-objdump -S bpf.o`: dump the code with debug info, which requires `-g` flag when compiling the BPF program
+
+## BPF with JitLink
+
+`JitLink` is a new JIT linker for LLVM. It is used to link object files into executable code. It is used by the `llvm-mc` tool to assemble BPF assembly into ELF object file.
+
+After building LLVM, we can find the `llvm-jitlink` tool in the `bin` directory. Its help page is like this.
+
+```sh
+llvm-jitlink --help
+OVERVIEW: llvm jitlink tool
+USAGE: llvm-jitlink [options] input files --args <program arguments>... --harness Test harness files
+
+OPTIONS:
+
+Color Options:
+
+  --color                           - Use colors in output (default=autodetect)
+
+Generic Options:
+
+  --help                            - Display available options (--help-hidden for more)
+  --help-list                       - Display list of available options (--help-list-hidden for more)
+  --version                         - Display the version of this program
+
+JITLink Options:
+
+  -L <string>                       - Add dir to the list of library search paths
+  --abs=<string>                    - Inject absolute symbol definitions (syntax: <name>=<addr>)
+  --add-self-relocations            - Add relocations to function pointers to the current function
+  --alias=<string>                  - Inject symbol aliases (syntax: <alias-name>=<aliasee>)
+  --args <string>...                - <program arguments>...
+  --check=<string>                  - File containing verifier checks
+  --check-name=<string>             - Name of checks to match against
+  --entry=<string>                  - Symbol to call as main entry point
+  --harness <string>...             - Test harness files
+  --hidden-l=<string>               - Link against library X in the library search paths with hidden visibility
+  --jd=<string>                     - Specifies the JITDylib to be used for any subsequent input file, -L<seacrh-path>, and -l<library> arguments
+  -l <string>                       - Link against library X in the library search paths
+  --load_hidden=<string>            - Link against library X with hidden visibility
+  --no-process-syms                 - Do not resolve to llvm-jitlink process symbols
+  --noexec                          - Do not execute loaded code
+  --oop-executor[=<string>]           - Launch an out-of-process executor to run code
+  --oop-executor-connect=<string>   - Connect to an out-of-process executor via TCP
+  --orc-runtime=<string>            - Use ORC runtime from given path
+  --phony-externals                 - resolve all otherwise unresolved externals to null
+  --preload=<string>                - Pre-load dynamic libraries (e.g. language runtimes required by the ORC runtime)
+  --search-sys-lib                  - Add system library paths to library search paths
+  --show-addrs                      - Print registered symbol, section, got and stub addresses
+  --show-entry-es                   - Print ExecutionSession state after resolving entry point
+  --show-err-failed-to-materialize  - Show FailedToMaterialize errors
+  --show-graphs=<string>            - Takes a posix regex and prints the link graphs of all files matching that regex after fixups have been applied
+  --show-init-es                    - Print ExecutionSession state before resolving entry point
+  --show-relocated-section-contents - show section contents after fixups have been applied
+  --show-sizes                      - Show sizes pre- and post-dead stripping, and allocations
+  --show-times                      - Show times for llvm-jitlink phases
+  --slab-address=<ulong>            - Set slab target address (requires -slab-allocate and -noexec)
+  --slab-allocate=<string>          - Allocate from a slab of the given size (allowable suffixes: Kb, Mb, Gb. default = Kb)
+  --slab-page-size=<ulong>          - Set page size for slab (requires -slab-allocate and -noexec)
+  --use-shared-memory               - Use shared memory to transfer generated code and data
+```
+
+When jitlinking a BPF program, we need to specify the `--entry` option to specify the entry point of the program. If we don't specify it, the default entry point is `main`, so `bpf.o` will fail.
+
+```sh
+Σ llvm-jitlink bpf.o 
+llvm-jitlink error: Symbols not found: [ main ]
+```
+
+Even if I specify the entry point, it still fails. This is because the `llvm-jitlink` tool doesn't support BPF yet.
+
+```sh
+Σ llvm-jitlink bpf.o --entry func
+llvm-jitlink error: Unsupported target machine architecture in ELF object bpf.o
+```
